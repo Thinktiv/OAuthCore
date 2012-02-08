@@ -27,12 +27,37 @@ static NSData *HMAC_SHA1(NSString *data, NSString *key) {
 	return [NSData dataWithBytes:buf length:CC_SHA1_DIGEST_LENGTH];
 }
 
+static int DefaultPortForScheme(NSString *scheme) {
+    if ([@"http" isEqualToString: scheme] == YES) {
+        return 80;
+    }
+    else if ([@"https" isEqualToString: scheme] == YES) {
+        return 443;
+    }
+    else {
+        return 0;
+    }
+}
+
+static NSString * URLPathWithTrailingSlash(NSURL *url) {
+    NSString * path = [url absoluteString];
+    NSArray * components = [path componentsSeparatedByString: @"?"];
+    path = (NSString *)[components objectAtIndex: 0];
+    path = [path substringFromIndex: [path rangeOfString: [url path]].location];
+    return path;
+}
+
 NSString *OAuthorizationHeader(NSURL *url, NSString *method, NSData *body, NSString *_oAuthConsumerKey, NSString *_oAuthConsumerSecret, NSString *_oAuthToken, NSString *_oAuthTokenSecret)
 {
 	NSString *_oAuthNonce = [NSString ab_GUID];
 	NSString *_oAuthTimestamp = [NSString stringWithFormat:@"%d", (int)[[NSDate date] timeIntervalSince1970]];
-	NSString *_oAuthSignatureMethod = @"HMAC-SHA1";
-	NSString *_oAuthVersion = @"1.0";
+    NSString *_oAuthSignatureMethod;
+    if([method isEqualToString:@"PUT"]){
+        _oAuthSignatureMethod = @"PLAINTEXT";
+    }else{
+        _oAuthSignatureMethod = @"PLAINTEXT";
+    }
+    NSString *_oAuthVersion = @"1.0";
 	
 	NSMutableDictionary *oAuthAuthorizationParameters = [NSMutableDictionary dictionary];
 	[oAuthAuthorizationParameters setObject:_oAuthNonce forKey:@"oauth_nonce"];
@@ -71,24 +96,19 @@ NSString *OAuthorizationHeader(NSURL *url, NSString *method, NSData *body, NSStr
 	for(NSString *key in sortedKeys) {
 		[parameterArray addObject:[NSString stringWithFormat:@"%@=%@", key, [encodedParameters objectForKey:key]]];
 	}
-	NSString *normalizedParameterString = [parameterArray componentsJoinedByString:@"&"];
 	
-	NSString *normalizedURLString = [NSString stringWithFormat:@"%@://%@%@", [url scheme], [url host], [url path]];
-	
-	NSString *signatureBaseString = [NSString stringWithFormat:@"%@&%@&%@",
-									 [method ab_RFC3986EncodedString],
-									 [normalizedURLString ab_RFC3986EncodedString],
-									 [normalizedParameterString ab_RFC3986EncodedString]];
-	
-	NSString *key = [NSString stringWithFormat:@"%@&%@",
-					 [_oAuthConsumerSecret ab_RFC3986EncodedString],
-					 [_oAuthTokenSecret ab_RFC3986EncodedString]];
-	
-	NSData *signature = HMAC_SHA1(signatureBaseString, key);
-	NSString *base64Signature = [signature base64EncodedString];
-	
-	NSMutableDictionary *authorizationHeaderDictionary = [[oAuthAuthorizationParameters mutableCopy] autorelease];
-	[authorizationHeaderDictionary setObject:base64Signature forKey:@"oauth_signature"];
+    // make sure we handle the port correctly - if the port is the default for the scheme, we should use it, otherwise don't
+	NSString *normalizedURLString = nil;
+    if ( [[url port] intValue] == DefaultPortForScheme([url scheme]) ) {
+        normalizedURLString = [NSString stringWithFormat:@"%@://%@%@", [url scheme], [url host], URLPathWithTrailingSlash(url)];
+    }
+    else {
+        normalizedURLString = [NSString stringWithFormat:@"%@://%@:%@%@", [url scheme], [url host], [url port], URLPathWithTrailingSlash(url)];
+    }
+    
+    
+    NSMutableDictionary *authorizationHeaderDictionary = [[oAuthAuthorizationParameters mutableCopy] autorelease];
+	[authorizationHeaderDictionary setObject:@"th1nkt1v&fAAZrJa3raL7zXHArDBDMRA4VPLDDwru" forKey:@"oauth_signature"];
 	
 	NSMutableArray *authorizationHeaderItems = [NSMutableArray array];
 	for(NSString *key in authorizationHeaderDictionary) {
