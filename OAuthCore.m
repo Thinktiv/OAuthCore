@@ -108,7 +108,6 @@ NSString *OAuthorizationHeader(NSURL *url, NSString *method, NSData *body, NSStr
     
     
     NSMutableDictionary *authorizationHeaderDictionary = [[oAuthAuthorizationParameters mutableCopy] autorelease];
-	[authorizationHeaderDictionary setObject:@"th1nkt1v&fAAZrJa3raL7zXHArDBDMRA4VPLDDwru" forKey:@"oauth_signature"];
 	
 	NSMutableArray *authorizationHeaderItems = [NSMutableArray array];
 	for(NSString *key in authorizationHeaderDictionary) {
